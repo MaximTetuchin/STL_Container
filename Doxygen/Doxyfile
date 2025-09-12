@@ -1,0 +1,25 @@
+PROJECT_NAME           = "STL Container"
+PROJECT_BRIEF          = "A circular doubly-linked list container in STL style"
+OPTIMIZE_OUTPUT_FOR_CPLUSPLUS = YES
+
+INPUT                  = ../         
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.cpp
+EXCLUDE                = ../gtests    
+STRIP_FROM_PATH        = ../             
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+GENERATE_XML           = NO
+
+FULL_PATH_NAMES        = NO
+SORT_MEMBER_DOCS       = YES
+INLINE_SOURCES         = YES
+SOURCE_BROWSER         = YES
+VERBATIM_HEADERS       = YES
