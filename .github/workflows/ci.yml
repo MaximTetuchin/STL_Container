@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+        cpp_standard: [17, 20]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y libgtest-dev libgmock-dev
+          sudo apt-get install -y cmake
+          cd /usr/src/gtest
+          sudo cmake CMakeLists.txt
+          sudo make
+          sudo cp lib/*.a /usr/lib
+          cd -
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          brew install googletest
+        fi
+
+    - name: Set up compiler
+      run: |
+        if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get install -y g++-12
+            echo "CXX=g++-12" >> $GITHUB_ENV
+          else
+            echo "CXX=g++" >> $GITHUB_ENV
+          fi
+        elif [ "${{ matrix.compiler }}" = "clang" ]; then
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get install -y clang-15
+            echo "CXX=clang++-15" >> $GITHUB_ENV
+          else
+            echo "CXX=clang++" >> $GITHUB_ENV
+          fi
+        fi
+
+    - name: Build and test
+      run: |
+        make CXX=${{ env.CXX }} CXXFLAGS="-std=c++${{ matrix.cpp_standard }} -Werror -Wall -Wextra -I./src" test
+
+    - name: Run valgrind (Linux only)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get install -y valgrind
+        valgrind --leak-check=full --error-exitcode=1 ./$(TEST_BIN)
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install clang-tidy and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-tidy clang
+        sudo apt-get install -y libgtest-dev
+
+    - name: Run clang-tidy
+      run: |
+        find src -name "*.h" -o -name "*.hpp" | xargs clang-tidy \
+          -checks="*,-modernize-use-trailing-return-type,-cppcoreguidelines-avoid-magic-numbers" \
+          -- -std=c++17 -I./src -I/usr/include
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtest-dev lcov gcovr
+
+    - name: Build with coverage
+      run: |
+        make clean
+        make CXXFLAGS="-std=c++17 -Werror -Wall -Wextra -I./src --coverage" LDFLAGS="-lgtest -lgtest_main -lpthread --coverage" test
+
+    - name: Generate coverage report
+      run: |
+        ./test_runner
+        
+        gcovr --root . --exclude-directories gtests --html --html-details -o coverage_report.html
+        gcovr --root . --exclude-directories gtests --xml -o coverage_report.xml
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: coverage_report.html
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: coverage_report.xml
+        flags: unittests
+        name: codecov-umbrella

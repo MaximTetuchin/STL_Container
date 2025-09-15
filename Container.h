@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CONTAINER_H
+#define CONTAINER_H
 
 #include <memory>
 #include <iterator>
@@ -59,6 +60,9 @@ public:
         template<typename... Args>
         Node(Args&&... args) : value(std::forward<Args>(args)...), next(nullptr), prev(nullptr) {}
     };
+
+    // Forward declaration of const_iterator
+    class const_iterator;
 
     /**
      * @class iterator
@@ -172,8 +176,9 @@ public:
         Node* current_;     ///< Pointer to current node
         Node* temp_node_;   ///< Pointer to sentinel node (end marker)
         
-        // Grant access to const_iterator for conversion
+        // Grant access to const_iterator and CircularList for conversion
         friend class const_iterator;
+        friend class CircularList<T, Allocator>;
     };
 
     /**
@@ -293,6 +298,9 @@ public:
     private:
         Node* current_;     ///< Pointer to current node
         Node* temp_node_;   ///< Pointer to sentinel node (end marker)
+        
+        // Grant access to CircularList
+        friend class CircularList<T, Allocator>;
     };
 
     // Reverse iterator types using std::reverse_iterator
@@ -631,4 +639,5 @@ private:
     size_type size_;    ///< Number of elements in the list
 };
 
-} // namespace stl_containers
+}
+#endif
