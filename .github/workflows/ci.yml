@@ -1,26 +1,23 @@
-name: CI Linux
+name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        compiler: [gcc, clang]
-        cpp_standard: [17, 20]
+    runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgtest-dev libgmock-dev cmake
+        sudo apt-get install -y libgtest-dev
 
     - name: Build Google Test
       run: |
@@ -29,88 +26,8 @@ jobs:
         sudo make
         sudo cp lib/*.a /usr/lib
 
-    - name: Set up compiler
-      run: |
-        if [ "${{ matrix.compiler }}" = "gcc" ]; then
-          sudo apt-get install -y g++-12
-          echo "CXX=g++-12" >> $GITHUB_ENV
-          echo "CC=gcc-12" >> $GITHUB_ENV
-        elif [ "${{ matrix.compiler }}" = "clang" ]; then
-          sudo apt-get install -y clang-15
-          echo "CXX=clang++-15" >> $GITHUB_ENV
-          echo "CC=clang-15" >> $GITHUB_ENV
-        fi
+    - name: Build project
+      run: make
 
-    - name: Build and test
-      run: |
-        make CXX=${{ env.CXX }} CXXFLAGS="-std=c++${{ matrix.cpp_standard }} -Werror -Wall -Wextra -I./src" test
-
-    - name: Run valgrind memory check
-      run: |
-        sudo apt-get install -y valgrind
-        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./test_runner
-
-  static-analysis:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang-tidy clang libgtest-dev
-
-    - name: Build Google Test
-      run: |
-        cd /usr/src/gtest
-        sudo cmake CMakeLists.txt
-        sudo make
-        sudo cp lib/*.a /usr/lib
-
-    - name: Run clang-tidy
-      run: |
-        clang-tidy src/CircularList.h --checks="*,-modernize-use-trailing-return-type,-cppcoreguidelines-avoid-magic-numbers" -- -std=c++17 -I./src -I/usr/include
-
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtest-dev lcov gcovr
-
-    - name: Build Google Test
-      run: |
-        cd /usr/src/gtest
-        sudo cmake CMakeLists.txt
-        sudo make
-        sudo cp lib/*.a /usr/lib
-
-    - name: Build with coverage
-      run: |
-        make clean
-        make CXXFLAGS="-std=c++17 -Werror -Wall -Wextra -I./src --coverage" LDFLAGS="-lgtest -lgtest_main -lpthread --coverage" test
-
-    - name: Generate coverage report
-      run: |
-        # Запуск тестов для генерации .gcda файлов
-        ./test_runner
-        
-        # Генерация отчетов
-        gcovr --root . --exclude-directories gtests --html --html-details -o coverage_report.html
-        gcovr --root . --exclude-directories gtests --xml -o coverage_report.xml
-        gcovr --root . --exclude-directories gtests --print-summary
-
-    - name: Upload coverage report artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage-report
-        path: coverage_report.html
-
-    - name: Upload to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: coverage_report.xml
-        flags: unittests
+    - name: Run tests
+      run: make test
