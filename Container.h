@@ -1,3 +1,6 @@
+/* Maxim Tetuchin tetuhin@inbox.ru | st128993@student.spbu.ru
+        STL_container
+*/
 #ifndef CONTAINER_H
 #define CONTAINER_H
 
